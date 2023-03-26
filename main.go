@@ -1,7 +1,12 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"minidocker/cmd"
+)
 
 func main() {
-	fmt.Println("Hello")
+	if err := cmd.Execute(); err != nil {
+		fmt.Println(err)
+	}
 }
