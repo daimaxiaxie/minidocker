@@ -41,8 +41,13 @@ func ContainerInit() error {
 		return fmt.Errorf("run container get command error, args is nil")
 	}
 
-	//defaultMountFlags := syscall.MS_NOEXEC | syscall.MS_NOSUID | syscall.MS_NODEV
-	//syscall.Mount("proc", "/proc", "proc", uintptr(defaultMountFlags), "")
+	/*
+		https://github.com/xianlubird/mydocker/issues/41
+		mount namespace default shared
+	*/
+	syscall.Mount("", "/", "", syscall.MS_PRIVATE|syscall.MS_REC, "")
+	defaultMountFlags := syscall.MS_NOEXEC | syscall.MS_NOSUID | syscall.MS_NODEV
+	syscall.Mount("proc", "/proc", "proc", uintptr(defaultMountFlags), "")
 	//defer syscall.Unmount("/proc", defaultMountFlags)
 	path, err := exec.LookPath(commands[0])
 	if err != nil {
