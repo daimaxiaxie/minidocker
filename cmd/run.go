@@ -12,10 +12,10 @@ import (
 )
 
 var runCommand = &cobra.Command{
-	Use:     "run",
+	Use:     "run [OPTIONS] IMAGE [COMMAND] [ARG...]",
 	Short:   "Fast start a container",
 	Long:    "Create a container with namespace and cgroups limit",
-	Example: "minidocker run -t [command]",
+	Example: "minidocker run -t IMAGE [command]",
 	Args:    cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		tty, err := cmd.Flags().GetBool("terminal")
@@ -32,7 +32,10 @@ var runCommand = &cobra.Command{
 		if res.CpuSet, err = cmd.Flags().GetString("cpuset"); err != nil {
 			return
 		}
-		Run(tty, cmd.Flags().Args(), res)
+		Run(tty, args, res)
+	},
+	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return nil, cobra.ShellCompDirectiveNoFileComp
 	},
 }
 
@@ -41,6 +44,7 @@ func init() {
 	runCommand.Flags().StringP("memory", "m", "1024m", "memory limit")
 	runCommand.Flags().StringP("cpushare", "", "1024", "cpushare limit")
 	runCommand.Flags().StringP("cpuset", "", "", "cpuset limit")
+	runCommand.Flags().SetInterspersed(false)
 }
 
 func Run(tty bool, commands []string, res *subsystems.ResourceConfig) {
