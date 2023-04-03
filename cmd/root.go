@@ -22,6 +22,7 @@ var rootCommand = &cobra.Command{
 func init() {
 	rootCommand.AddCommand(runCommand)
 	rootCommand.AddCommand(initCommand)
+	rootCommand.AddCommand(commitCommand)
 }
 
 func Execute() error {
