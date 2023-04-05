@@ -1,14 +1,18 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/spf13/cobra"
+	"math/rand"
 	"minidocker/cgroups"
 	"minidocker/cgroups/subsystems"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"syscall"
+	"time"
 )
 
 var runCommand = &cobra.Command{
@@ -36,7 +40,19 @@ var runCommand = &cobra.Command{
 		if err != nil {
 			return
 		}
-		Run(tty, args, volume, res)
+		detach, err := cmd.Flags().GetBool("detach")
+		if err != nil {
+			return
+		}
+		if tty && detach {
+			fmt.Println("tty and detach can not both provided")
+			return
+		}
+		containerName, err := cmd.Flags().GetString("name")
+		if err != nil {
+			return
+		}
+		Run(tty, args, volume, res, containerName)
 	},
 	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -44,15 +60,17 @@ var runCommand = &cobra.Command{
 }
 
 func init() {
-	runCommand.Flags().BoolP("terminal", "t", false, "enable tty")
+	runCommand.Flags().BoolP("terminal", "t", true, "enable tty")
+	runCommand.Flags().BoolP("detach", "d", false, "detach container")
 	runCommand.Flags().StringP("memory", "m", "1024m", "memory limit")
 	runCommand.Flags().StringP("cpushare", "", "1024", "cpushare limit")
 	runCommand.Flags().StringP("cpuset", "", "", "cpuset limit")
 	runCommand.Flags().StringP("volume", "v", "", "volume")
+	runCommand.Flags().StringP("name", "n", "", "container name")
 	runCommand.Flags().SetInterspersed(false)
 }
 
-func Run(tty bool, commands []string, volume string, res *subsystems.ResourceConfig) {
+func Run(tty bool, commands []string, volume string, res *subsystems.ResourceConfig, containerName string) {
 	fmt.Println(tty, commands, res)
 	readPipe, writePipe, err := os.Pipe()
 	if err != nil {
@@ -66,6 +84,19 @@ func Run(tty bool, commands []string, volume string, res *subsystems.ResourceCon
 		cmd.Stdin = os.Stdin
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
+	} else {
+		pathUrl := fmt.Sprintf(DefaultInfoLocation, containerName)
+		if err := os.MkdirAll(pathUrl, 0622); err != nil {
+			fmt.Println(err)
+			return
+		}
+		logFilePath := pathUrl + ContainerLogFile
+		logFile, err := os.Create(logFilePath)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		cmd.Stdout = logFile
 	}
 	cmd.ExtraFiles = []*os.File{readPipe}
 
@@ -78,6 +109,13 @@ func Run(tty bool, commands []string, volume string, res *subsystems.ResourceCon
 		fmt.Println(err)
 		return
 	}
+
+	containerName, err = recordContainerInfo(cmd.Process.Pid, commands, containerName)
+	if err != nil {
+		fmt.Println("Record container info error ", err)
+		return
+	}
+
 	cgroupManager := cgroups.NewCgroupManager("minidocker-cgroup")
 	defer cgroupManager.Destory()
 	cgroupManager.Set(res)
@@ -86,8 +124,11 @@ func Run(tty bool, commands []string, volume string, res *subsystems.ResourceCon
 	writePipe.WriteString(strings.Join(commands, " "))
 	writePipe.Close()
 
-	cmd.Wait()
-	DeleteWorkSpace(rootURL, mntURL, volume)
+	if tty {
+		cmd.Wait()
+		deleteContainerInfo(containerName)
+		DeleteWorkSpace(rootURL, mntURL, volume)
+	}
 }
 
 // NewWorkSpace Create a AUFS
@@ -204,6 +245,48 @@ func DeleteMountPointWithVolume(rootURL string, mntURL string, volumeURLs []stri
 	DeleteMountPoint(rootURL, mntURL)
 }
 
+func recordContainerInfo(pid int, commands []string, containerName string) (string, error) {
+	id := RandID(10)
+	if len(containerName) == 0 {
+		containerName = id
+	}
+	containerInfo := &ContainerInfo{
+		Pid:        strconv.Itoa(pid),
+		Id:         id,
+		Name:       containerName,
+		Command:    strings.Join(commands, " "),
+		CreateTime: time.Now().Format("2008-08-08 10:00:00"),
+		Status:     RUNNING,
+	}
+	jsonBytes, err := json.Marshal(containerInfo)
+	if err != nil {
+		return "", err
+	}
+
+	pathUrl := fmt.Sprintf(DefaultInfoLocation, containerInfo)
+	if err := os.MkdirAll(pathUrl, 0622); err != nil {
+		return "", err
+	}
+	fileName := pathUrl + "/" + ConfigName
+	file, err := os.Create(fileName)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	if _, err = file.Write(jsonBytes); err != nil {
+		return "", err
+	}
+	return containerName, nil
+}
+
+func deleteContainerInfo(containerId string) {
+	pathUrl := fmt.Sprintf(DefaultInfoLocation, containerId)
+	if err := os.RemoveAll(pathUrl); err != nil {
+		fmt.Println("Remove dir ", pathUrl, " error ", err)
+	}
+}
+
 func PathExist(path string) (bool, error) {
 	_, err := os.Stat(path)
 	if err == nil {
@@ -218,3 +301,31 @@ func PathExist(path string) (bool, error) {
 func volumeUrlExtract(volume string) []string {
 	return strings.Split(volume, ":")
 }
+
+func RandID(length int) string {
+	rand.Seed(time.Now().UnixNano())
+	res := make([]byte, length)
+	candidate := "0123456789"
+	for i := range res {
+		res[i] = candidate[rand.Intn(len(candidate))]
+	}
+	return string(res)
+}
+
+type ContainerInfo struct {
+	Pid        string `json:"pid"`
+	Id         string `json:"id"`
+	Name       string `json:"name"`
+	Command    string `json:"command"`
+	CreateTime string `json:"createTime"`
+	Status     string `json:"status"`
+}
+
+const (
+	RUNNING             string = "running"
+	STOP                string = "stopped"
+	EXIT                string = "exited"
+	DefaultInfoLocation string = "/var/run/minidocker/%s/"
+	ConfigName          string = "config.json"
+	ContainerLogFile    string = "container.log"
+)

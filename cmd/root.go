@@ -23,6 +23,11 @@ func init() {
 	rootCommand.AddCommand(runCommand)
 	rootCommand.AddCommand(initCommand)
 	rootCommand.AddCommand(commitCommand)
+	rootCommand.AddCommand(psCommand)
+	rootCommand.AddCommand(logCommand)
+	rootCommand.AddCommand(execCommand)
+	rootCommand.AddCommand(stopCommand)
+	rootCommand.AddCommand(removeCommand)
 }
 
 func Execute() error {
