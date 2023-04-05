@@ -47,10 +47,7 @@ func ContainerInit() error {
 	if err != nil {
 		return err
 	}
-	path, err := exec.LookPath(commands[0])
-	if err != nil {
-		return err
-	}
+
 	syscall.Mount("", "/", "", syscall.MS_PRIVATE|syscall.MS_REC, "")
 	if err = pivotRoot(pwd); err != nil {
 		return err
@@ -65,8 +62,12 @@ func ContainerInit() error {
 	//defer syscall.Unmount("/proc", defaultMountFlags)
 	syscall.Mount("tmpfs", "/dev", "tmpfs", syscall.MS_NOSUID|syscall.MS_STRICTATIME, "mode=755")
 
+	path, err := exec.LookPath(commands[0])
+	if err != nil {
+		return err
+	}
+
 	if err := syscall.Exec(path, commands, os.Environ()); err != nil {
-		fmt
 		return err
 	}
 	return nil

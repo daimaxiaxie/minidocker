@@ -68,6 +68,7 @@ func Run(tty bool, commands []string, volume string, res *subsystems.ResourceCon
 		cmd.Stderr = os.Stderr
 	}
 	cmd.ExtraFiles = []*os.File{readPipe}
+
 	mntURL := "/root/mnt/"
 	rootURL := "/root/"
 	NewWorkSpace(rootURL, mntURL, volume)
