@@ -52,8 +52,12 @@ var runCommand = &cobra.Command{
 		if err != nil {
 			return
 		}
+		env, err := cmd.Flags().GetStringSlice("env")
+		if err != nil {
+			return
+		}
 		imageName := args[0]
-		Run(tty, args[1:], volume, res, containerName, imageName)
+		Run(tty, args[1:], volume, res, containerName, imageName, env)
 	},
 	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -68,10 +72,11 @@ func init() {
 	runCommand.Flags().StringP("cpuset", "", "", "cpuset limit")
 	runCommand.Flags().StringP("volume", "v", "", "volume")
 	runCommand.Flags().StringP("name", "n", "", "container name")
+	runCommand.Flags().StringSliceP("env", "e", []string{}, "set environment")
 	runCommand.Flags().SetInterspersed(false)
 }
 
-func Run(tty bool, commands []string, volume string, res *subsystems.ResourceConfig, containerName string, imageName string) {
+func Run(tty bool, commands []string, volume string, res *subsystems.ResourceConfig, containerName string, imageName string, env []string) {
 	fmt.Println(tty, commands, res)
 	readPipe, writePipe, err := os.Pipe()
 	if err != nil {
@@ -100,6 +105,7 @@ func Run(tty bool, commands []string, volume string, res *subsystems.ResourceCon
 		cmd.Stdout = logFile
 	}
 	cmd.ExtraFiles = []*os.File{readPipe}
+	cmd.Env = append(os.Environ(), env...)
 
 	NewWorkSpace(volume, containerName, imageName)
 	cmd.Dir = fmt.Sprintf(MntURL, containerName)

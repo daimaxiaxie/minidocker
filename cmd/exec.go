@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"github.com/spf13/cobra"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"strings"
@@ -51,6 +52,9 @@ func ExecContainer(containerName string, commands []string) {
 	os.Setenv(ENV_EXEC_CMD, command)
 	defer os.Unsetenv(ENV_EXEC_CMD)
 
+	containerEnv := getEnvByPid(pid)
+	cmd.Env = append(os.Environ(), containerEnv...)
+
 	if err = cmd.Run(); err != nil {
 		fmt.Println(err)
 	}
@@ -62,4 +66,15 @@ func getContainerPidByName(containerName string) (string, error) {
 		return "", err
 	}
 	return containerInfo.Pid, nil
+}
+
+func getEnvByPid(pid string) []string {
+	path := fmt.Sprintf("/proc/%s/environ", pid)
+	content, err := ioutil.ReadFile(path)
+	if err != nil {
+		fmt.Println(err)
+		return nil
+	}
+	env := strings.Split(string(content), "\u0000")
+	return env
 }
