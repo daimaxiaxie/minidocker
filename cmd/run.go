@@ -47,6 +47,8 @@ var runCommand = &cobra.Command{
 		if tty && detach {
 			fmt.Println("tty and detach can not both provided")
 			return
+		} else if !(tty || detach) {
+			tty = true
 		}
 		containerName, err := cmd.Flags().GetString("name")
 		if err != nil {
@@ -65,7 +67,7 @@ var runCommand = &cobra.Command{
 }
 
 func init() {
-	runCommand.Flags().BoolP("terminal", "t", true, "enable tty")
+	runCommand.Flags().BoolP("terminal", "t", false, "enable tty")
 	runCommand.Flags().BoolP("detach", "d", false, "detach container")
 	runCommand.Flags().StringP("memory", "m", "1024m", "memory limit")
 	runCommand.Flags().StringP("cpushare", "", "1024", "cpushare limit")
@@ -82,6 +84,11 @@ func Run(tty bool, commands []string, volume string, res *subsystems.ResourceCon
 	if err != nil {
 		fmt.Println(err)
 		return
+	}
+
+	id := RandID(10)
+	if len(containerName) == 0 {
+		containerName = id
 	}
 
 	cmd := exec.Command("/proc/self/exe", "init")
@@ -115,7 +122,7 @@ func Run(tty bool, commands []string, volume string, res *subsystems.ResourceCon
 		return
 	}
 
-	containerName, err = recordContainerInfo(cmd.Process.Pid, commands, containerName, volume)
+	containerName, err = recordContainerInfo(cmd.Process.Pid, commands, containerName, id, volume)
 	if err != nil {
 		fmt.Println("Record container info error ", err)
 		return
@@ -200,12 +207,13 @@ func CreateMountPoint(containerName string, imageName string) error {
 	if err := os.Mkdir(mntURL, 0777); err != nil {
 		fmt.Println(err)
 	}
-	dirs := "dirs=" + fmt.Sprintf(WriteLayerURL, containerName) + ":" + RootURL + "/" + imageName
-	cmd := exec.Command("mount", "-t", "aufs", "-o", dirs, "none", mntURL)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
+
+	writeLayer := fmt.Sprintf(WriteLayerURL, containerName)
+	imageLayer := RootURL + "/" + imageName
+	dirs := "dirs=" + writeLayer + ":" + imageLayer
+	if _, err := exec.Command("mount", "-t", "aufs", "-o", dirs, "none", mntURL).CombinedOutput(); err != nil {
 		fmt.Println(err)
+		return err
 	}
 	return nil
 }
@@ -254,17 +262,14 @@ func DeleteMountPointWithVolume(volumeURLs []string, containerName string) {
 	DeleteMountPoint(containerName)
 }
 
-func recordContainerInfo(pid int, commands []string, containerName string, volume string) (string, error) {
-	id := RandID(10)
-	if len(containerName) == 0 {
-		containerName = id
-	}
+func recordContainerInfo(pid int, commands []string, containerName string, id string, volume string) (string, error) {
+
 	containerInfo := &ContainerInfo{
 		Pid:        strconv.Itoa(pid),
 		Id:         id,
 		Name:       containerName,
 		Command:    strings.Join(commands, " "),
-		CreateTime: time.Now().Format("2008-08-08 10:00:00"),
+		CreateTime: time.Now().Format("2006-01-02 15:04:05"),
 		Status:     RUNNING,
 		Volume:     volume,
 	}
@@ -273,7 +278,7 @@ func recordContainerInfo(pid int, commands []string, containerName string, volum
 		return "", err
 	}
 
-	pathUrl := fmt.Sprintf(DefaultInfoLocation, containerInfo)
+	pathUrl := fmt.Sprintf(DefaultInfoLocation, containerInfo.Name)
 	if err := os.MkdirAll(pathUrl, 0622); err != nil {
 		return "", err
 	}

@@ -7,7 +7,7 @@ import (
 	"os"
 )
 
-var logCommand = &cobra.Command{
+var logsCommand = &cobra.Command{
 	Use:     "logs",
 	Short:   "print logs",
 	Long:    "print logs of a container",
@@ -36,5 +36,5 @@ func LogContainer(containerName string) {
 		fmt.Println(err)
 		return
 	}
-	fmt.Println(content)
+	fmt.Println(string(content))
 }

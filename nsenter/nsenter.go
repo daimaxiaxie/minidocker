@@ -1,9 +1,11 @@
 package nsenter
 
 /*
+#define _GNU_SOURCE
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 #include <fcntl.h>
 #include <sched.h>
 #include <errno.h>
@@ -50,6 +52,7 @@ __attribute__((constructor)) void enter_namespace(void)
     }
 
     int res = system(docker_cmd);
+	exit(0);
     return;
 }
 */

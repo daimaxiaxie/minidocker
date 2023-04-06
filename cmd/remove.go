@@ -38,4 +38,6 @@ func RemoveContainer(containerName string) {
 		fmt.Println("remove dir ", pathUrl, " error ", err)
 		return
 	}
+
+	DeleteWorkSpace(containerInfo.Volume, containerInfo.Name)
 }

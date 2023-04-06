@@ -7,6 +7,8 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+
+	_ "minidocker/nsenter"
 )
 
 const (
@@ -19,9 +21,14 @@ var execCommand = &cobra.Command{
 	Short:   "exec a command",
 	Long:    "exec a command in container",
 	Example: "minidocker exec [CONTAINER] [command]",
-	Args:    cobra.MinimumNArgs(2),
+	Args:    cobra.MinimumNArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
 		if os.Getenv(ENV_EXEC_PID) != "" {
+			fmt.Println(os.Getenv(ENV_EXEC_PID), os.Getenv(ENV_EXEC_CMD))
+			return
+		}
+		if len(args) < 2 {
+			fmt.Println("requires at least 2 args")
 			return
 		}
 

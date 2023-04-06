@@ -24,7 +24,7 @@ func init() {
 	rootCommand.AddCommand(initCommand)
 	rootCommand.AddCommand(commitCommand)
 	rootCommand.AddCommand(psCommand)
-	rootCommand.AddCommand(logCommand)
+	rootCommand.AddCommand(logsCommand)
 	rootCommand.AddCommand(execCommand)
 	rootCommand.AddCommand(stopCommand)
 	rootCommand.AddCommand(removeCommand)
