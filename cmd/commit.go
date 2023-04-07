@@ -7,7 +7,7 @@ import (
 )
 
 var commitCommand = &cobra.Command{
-	Use:     "commit IMAGE",
+	Use:     "commit",
 	Short:   "commit a container into image",
 	Long:    "commit a container into image",
 	Example: "minidocker commit [CONTAINER] [IMAGE]",

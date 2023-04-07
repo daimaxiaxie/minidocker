@@ -28,6 +28,7 @@ func init() {
 	rootCommand.AddCommand(execCommand)
 	rootCommand.AddCommand(stopCommand)
 	rootCommand.AddCommand(removeCommand)
+	rootCommand.AddCommand(networkCommand)
 }
 
 func Execute() error {

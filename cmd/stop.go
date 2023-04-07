@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/spf13/cobra"
 	"io/ioutil"
+	"minidocker/container"
 	"strconv"
 	"syscall"
 )
@@ -56,13 +57,13 @@ func StopContainer(containerName string) {
 	}
 }
 
-func getContainerInfoByName(containerName string) (*ContainerInfo, error) {
+func getContainerInfoByName(containerName string) (*container.Info, error) {
 	pathUrl := fmt.Sprintf(DefaultInfoLocation, containerName)
 	content, err := ioutil.ReadFile(pathUrl + ConfigName)
 	if err != nil {
 		return nil, err
 	}
-	var containerInfo = new(ContainerInfo)
+	var containerInfo = new(container.Info)
 	if err = json.Unmarshal(content, containerInfo); err != nil {
 		return nil, err
 	}

@@ -5,9 +5,14 @@ import (
 	"fmt"
 	"github.com/spf13/cobra"
 	"io/ioutil"
+	"minidocker/container"
 	"os"
 	"text/tabwriter"
 )
+
+var SkipList = map[string]bool{
+	"network": true,
+}
 
 var psCommand = &cobra.Command{
 	Use:     "ps",
@@ -33,8 +38,11 @@ func ListContainers() {
 		return
 	}
 
-	var containers []*ContainerInfo
+	var containers []*container.Info
 	for _, file := range files {
+		if _, ok := SkipList[file.Name()]; ok {
+			continue
+		}
 		info, err := getContainerInfo(file)
 		if err != nil {
 			fmt.Println(err)
@@ -53,14 +61,14 @@ func ListContainers() {
 	}
 }
 
-func getContainerInfo(file os.FileInfo) (*ContainerInfo, error) {
+func getContainerInfo(file os.FileInfo) (*container.Info, error) {
 	containerName := file.Name()
 	configFile := fmt.Sprintf(DefaultInfoLocation, containerName) + ConfigName
 	content, err := ioutil.ReadFile(configFile)
 	if err != nil {
 		return nil, err
 	}
-	var containerInfo = new(ContainerInfo)
+	var containerInfo = new(container.Info)
 	if err = json.Unmarshal(content, containerInfo); err != nil {
 		return nil, err
 	}

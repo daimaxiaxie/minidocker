@@ -7,6 +7,8 @@ import (
 	"math/rand"
 	"minidocker/cgroups"
 	"minidocker/cgroups/subsystems"
+	"minidocker/container"
+	"minidocker/network"
 	"os"
 	"os/exec"
 	"strconv"
@@ -58,8 +60,10 @@ var runCommand = &cobra.Command{
 		if err != nil {
 			return
 		}
+		net, err := cmd.Flags().GetString("net")
+		portMapping, err := cmd.Flags().GetStringSlice("port")
 		imageName := args[0]
-		Run(tty, args[1:], volume, res, containerName, imageName, env)
+		Run(tty, args[1:], volume, res, containerName, imageName, env, net, portMapping)
 	},
 	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -75,10 +79,12 @@ func init() {
 	runCommand.Flags().StringP("volume", "v", "", "volume")
 	runCommand.Flags().StringP("name", "n", "", "container name")
 	runCommand.Flags().StringSliceP("env", "e", []string{}, "set environment")
+	runCommand.Flags().StringP("net", "", "", "join network")
+	runCommand.Flags().StringSliceP("port", "p", []string{}, "port mapping")
 	runCommand.Flags().SetInterspersed(false)
 }
 
-func Run(tty bool, commands []string, volume string, res *subsystems.ResourceConfig, containerName string, imageName string, env []string) {
+func Run(tty bool, commands []string, volume string, res *subsystems.ResourceConfig, containerName string, imageName string, env []string, net string, portMapping []string) {
 	fmt.Println(tty, commands, res)
 	readPipe, writePipe, err := os.Pipe()
 	if err != nil {
@@ -132,6 +138,20 @@ func Run(tty bool, commands []string, volume string, res *subsystems.ResourceCon
 	defer cgroupManager.Destory()
 	cgroupManager.Set(res)
 	cgroupManager.Apply(cmd.Process.Pid)
+
+	if net != "" {
+		network.Init()
+		info := &container.Info{
+			Pid:         strconv.Itoa(cmd.Process.Pid),
+			Id:          id,
+			Name:        containerName,
+			PortMapping: portMapping,
+		}
+		if err := network.Connect(net, info); err != nil {
+			fmt.Println(err)
+			return
+		}
+	}
 
 	writePipe.WriteString(strings.Join(commands, " "))
 	writePipe.Close()
@@ -264,7 +284,7 @@ func DeleteMountPointWithVolume(volumeURLs []string, containerName string) {
 
 func recordContainerInfo(pid int, commands []string, containerName string, id string, volume string) (string, error) {
 
-	containerInfo := &ContainerInfo{
+	containerInfo := &container.Info{
 		Pid:        strconv.Itoa(pid),
 		Id:         id,
 		Name:       containerName,
@@ -325,16 +345,6 @@ func RandID(length int) string {
 		res[i] = candidate[rand.Intn(len(candidate))]
 	}
 	return string(res)
-}
-
-type ContainerInfo struct {
-	Pid        string `json:"pid"`
-	Id         string `json:"id"`
-	Name       string `json:"name"`
-	Command    string `json:"command"`
-	CreateTime string `json:"createTime"`
-	Status     string `json:"status"`
-	Volume     string `json:"volume"`
 }
 
 const (
