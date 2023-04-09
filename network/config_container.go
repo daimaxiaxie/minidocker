@@ -68,7 +68,7 @@ func enterContainerNetns(link *netlink.Link, info *container.Info) func() {
 		fmt.Println("set link netns error ", err)
 	}
 
-	origns, err := netns.Get()
+	origins, err := netns.Get()
 	if err != nil {
 		fmt.Println("get current netns error ", err)
 	}
@@ -78,8 +78,8 @@ func enterContainerNetns(link *netlink.Link, info *container.Info) func() {
 	}
 
 	return func() {
-		netns.Set(origns)
-		origns.Close()
+		netns.Set(origins)
+		origins.Close()
 		runtime.UnlockOSThread()
 		f.Close()
 	}
