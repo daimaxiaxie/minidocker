@@ -2,7 +2,6 @@ package network
 
 import (
 	"encoding/json"
-	"fmt"
 	"net"
 	"os"
 	"path"
@@ -78,7 +77,7 @@ func (i *IPAM) Allocate(subnet *net.IPNet) (ip net.IP, err error) {
 	i.Subnets = &map[string]string{}
 
 	if err := i.load(); err != nil {
-		fmt.Println("load allocation info error ", err)
+		logger.Errorf("load allocation info error %s", err)
 	}
 
 	_, subnet, _ = net.ParseCIDR(subnet.String())
@@ -109,7 +108,7 @@ func (i *IPAM) Release(subnet *net.IPNet, ipaddr *net.IP) error {
 	i.Subnets = &map[string]string{}
 
 	if err := i.load(); err != nil {
-		fmt.Println("load allocation info error ", err)
+		logger.Errorf("load allocation info error %s", err)
 	}
 
 	_, subnet, _ = net.ParseCIDR(subnet.String())

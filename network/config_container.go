@@ -43,13 +43,13 @@ func configPortMapping(ep *Endpoint, info *container.Info) error {
 	for _, port := range ep.PortMapping {
 		mapping := strings.Split(port, ":")
 		if len(mapping) != 2 {
-			fmt.Println("port mapping format error")
+			logger.Errorln("port mapping format error")
 			continue
 		}
 
 		command := fmt.Sprintf("-t nat -A PREROUTING -p tcp -m tcp --dport %s -j DNAT --to-destination %s:%s", mapping[0], ep.IPAddress.String(), mapping[1])
 		if _, err := exec.Command("iptables", strings.Split(command, " ")...).CombinedOutput(); err != nil {
-			fmt.Println("exec iptables error ", err)
+			logger.Errorf("exec iptables error %s", err)
 			continue
 		}
 	}
@@ -59,28 +59,28 @@ func configPortMapping(ep *Endpoint, info *container.Info) error {
 func enterContainerNetns(link *netlink.Link, info *container.Info) func() {
 	f, err := os.OpenFile(fmt.Sprintf("/proc/%s/ns/net", info.Pid), os.O_RDONLY, 0)
 	if err != nil {
-		fmt.Println("get container net namespace error ", err)
+		logger.Errorf("get container net namespace error %s", err)
 	}
 
 	fd := f.Fd()
 	runtime.LockOSThread()
 	if err = netlink.LinkSetNsFd(*link, int(fd)); err != nil {
-		fmt.Println("set link netns error ", err)
+		logger.Errorf("set link netns error %s", err)
 	}
 
 	origins, err := netns.Get()
 	if err != nil {
-		fmt.Println("get current netns error ", err)
+		logger.Errorf("get current netns error %s", err)
 	}
 
 	if err = netns.Set(netns.NsHandle(fd)); err != nil {
-		fmt.Println("set netns error ", err)
+		logger.Errorf("set netns error %s", err)
 	}
 
 	return func() {
-		netns.Set(origins)
-		origins.Close()
+		_ = netns.Set(origins)
+		_ = origins.Close()
 		runtime.UnlockOSThread()
-		f.Close()
+		_ = f.Close()
 	}
 }

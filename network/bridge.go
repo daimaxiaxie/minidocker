@@ -26,7 +26,7 @@ func (b *BridgeNetworkDriver) Create(subnet string, name string) (*Network, erro
 
 	err := b.init(n)
 	if err != nil {
-		fmt.Println("init bridge error ", err)
+		logger.Errorf("init bridge error %s", err)
 	}
 	return n, err
 }

@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"fmt"
 	"github.com/spf13/cobra"
 	"minidocker/network"
 )
@@ -22,11 +21,10 @@ var createCommand = &cobra.Command{
 	Long:  "create container network",
 	Args:  cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		network.Init()
+		_ = network.Init()
 		driver, _ := cmd.Flags().GetString("driver")
 		subnet, _ := cmd.Flags().GetString("subnet")
 		if err := network.CreateNetwork(driver, subnet, args[0]); err != nil {
-			fmt.Println(err)
 			return err
 		}
 		return nil
@@ -51,7 +49,7 @@ var rmCommand = &cobra.Command{
 	Long:  "remove container network",
 	Args:  cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		network.Init()
+		_ = network.Init()
 		if err := network.DeleteNetwork(args[0]); err != nil {
 			return err
 		}

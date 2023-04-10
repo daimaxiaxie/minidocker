@@ -1,9 +1,11 @@
 package cmd
 
 import (
-	"fmt"
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 )
+
+var logger = zap.NewExample().Sugar()
 
 var rootCommand = &cobra.Command{
 	Use:     "minidocker",
@@ -12,7 +14,6 @@ var rootCommand = &cobra.Command{
 	Example: "minidocker run [command]",
 	Args:    cobra.MinimumNArgs(1),
 	PreRun: func(cmd *cobra.Command, args []string) {
-		fmt.Println("pre")
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 

@@ -3,8 +3,7 @@ package cmd
 import (
 	"fmt"
 	"github.com/spf13/cobra"
-	"io/ioutil"
-	"os"
+	"minidocker/container"
 )
 
 var logsCommand = &cobra.Command{
@@ -13,8 +12,8 @@ var logsCommand = &cobra.Command{
 	Long:    "print logs of a container",
 	Example: "minidocker logs [CONTAINER]",
 	Args:    cobra.MinimumNArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		LogContainer(args[0])
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return LogContainer(args[0])
 	},
 }
 
@@ -22,19 +21,12 @@ func init() {
 
 }
 
-func LogContainer(containerName string) {
-	pathUrl := fmt.Sprintf(DefaultInfoLocation, containerName)
-	file, err := os.Open(pathUrl + ContainerLogFile)
-	if err != nil {
-		fmt.Println(err)
-		return
+func LogContainer(containerName string) error {
+	if content, err := container.GetContainerLog(containerName); err != nil {
+		return err
+	} else {
+		fmt.Println(string(content))
 	}
-	defer file.Close()
 
-	content, err := ioutil.ReadAll(file)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	fmt.Println(string(content))
+	return nil
 }

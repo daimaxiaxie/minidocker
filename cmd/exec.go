@@ -3,17 +3,11 @@ package cmd
 import (
 	"fmt"
 	"github.com/spf13/cobra"
-	"io/ioutil"
+	"minidocker/container"
 	"os"
-	"os/exec"
 	"strings"
 
 	_ "minidocker/nsenter"
-)
-
-const (
-	ENV_EXEC_PID = "minidocker_pid"
-	ENV_EXEC_CMD = "minidocker_cmd"
 )
 
 var execCommand = &cobra.Command{
@@ -22,17 +16,17 @@ var execCommand = &cobra.Command{
 	Long:    "exec a command in container",
 	Example: "minidocker exec [CONTAINER] [command]",
 	Args:    cobra.MinimumNArgs(0),
-	Run: func(cmd *cobra.Command, args []string) {
-		if os.Getenv(ENV_EXEC_PID) != "" {
-			fmt.Println(os.Getenv(ENV_EXEC_PID), os.Getenv(ENV_EXEC_CMD))
-			return
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if os.Getenv(container.ENV_EXEC_PID) != "" {
+			logger.Infof("subProcess env %s, %s", os.Getenv(container.ENV_EXEC_PID), os.Getenv(container.ENV_EXEC_CMD))
+			return nil
 		}
 		if len(args) < 2 {
-			fmt.Println("requires at least 2 args")
-			return
+
+			return fmt.Errorf("requires at least 2 args")
 		}
 
-		ExecContainer(args[0], args[1:])
+		return ExecContainer(args[0], args[1:])
 	},
 }
 
@@ -40,48 +34,7 @@ func init() {
 	execCommand.Flags().SetInterspersed(false)
 }
 
-func ExecContainer(containerName string, commands []string) {
-	pid, err := getContainerPidByName(containerName)
-	if err != nil {
-		fmt.Println("get container pid by name error ", err)
-		return
-	}
-
+func ExecContainer(containerName string, commands []string) error {
 	command := strings.Join(commands, " ")
-	fmt.Println(pid, command)
-	cmd := exec.Command("/proc/self/exe", "exec")
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	os.Setenv(ENV_EXEC_PID, pid)
-	defer os.Unsetenv(ENV_EXEC_PID)
-	os.Setenv(ENV_EXEC_CMD, command)
-	defer os.Unsetenv(ENV_EXEC_CMD)
-
-	containerEnv := getEnvByPid(pid)
-	cmd.Env = append(os.Environ(), containerEnv...)
-
-	if err = cmd.Run(); err != nil {
-		fmt.Println(err)
-	}
-}
-
-func getContainerPidByName(containerName string) (string, error) {
-	containerInfo, err := getContainerInfoByName(containerName)
-	if err != nil {
-		return "", err
-	}
-	return containerInfo.Pid, nil
-}
-
-func getEnvByPid(pid string) []string {
-	path := fmt.Sprintf("/proc/%s/environ", pid)
-	content, err := ioutil.ReadFile(path)
-	if err != nil {
-		fmt.Println(err)
-		return nil
-	}
-	env := strings.Split(string(content), "\u0000")
-	return env
+	return container.ExecContainer(containerName, command)
 }

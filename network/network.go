@@ -3,6 +3,7 @@ package network
 import (
 	"encoding/json"
 	"fmt"
+	"go.uber.org/zap"
 	"io/fs"
 	"minidocker/container"
 	"net"
@@ -18,6 +19,7 @@ var (
 	defaultNetworkPath = "/var/run/minidocker/network/network"
 	drivers            = map[string]Driver{}
 	networks           = map[string]*Network{}
+	logger             = zap.NewExample().Sugar()
 )
 
 type Network struct {
@@ -112,7 +114,7 @@ func Init() error {
 		}
 	}
 
-	filepath.Walk(defaultNetworkPath, func(filepath string, info fs.FileInfo, err error) error {
+	_ = filepath.Walk(defaultNetworkPath, func(filepath string, info fs.FileInfo, err error) error {
 		if info.IsDir() {
 			return nil
 		}
@@ -122,7 +124,7 @@ func Init() error {
 		}
 
 		if err := network.load(filepath); err != nil {
-			fmt.Println("load network error ", err)
+			logger.Errorf("load network error %s", err)
 		}
 
 		networks[name] = network
@@ -151,7 +153,7 @@ func ListNetwork() {
 	w := tabwriter.NewWriter(os.Stdout, 12, 1, 3, ' ', 0)
 	_, _ = fmt.Fprintf(w, "NAME\tIPRange\tDriver\n")
 	for _, network := range networks {
-		fmt.Fprintf(w, "%s\t%s\t%s\n", network.Name, network.IPRange.String(), network.Driver)
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\n", network.Name, network.IPRange.String(), network.Driver)
 	}
 	if err := w.Flush(); err != nil {
 		return
